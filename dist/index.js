@@ -203,7 +203,7 @@ var require_file_command = __commonJS({
     exports2.issueFileCommand = issueFileCommand;
     exports2.prepareKeyValueMessage = prepareKeyValueMessage;
     var crypto2 = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -211,10 +211,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -20193,13 +20193,13 @@ var require_io_util = __commonJS({
     exports2.isRooted = isRooted;
     exports2.tryGetExecutablePath = tryGetExecutablePath;
     exports2.getCmdPath = getCmdPath;
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var path = __importStar(require("path"));
-    _a = fs2.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     function readlink(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
-        const result = yield fs2.promises.readlink(fsPath);
+        const result = yield fs3.promises.readlink(fsPath);
         if (exports2.IS_WINDOWS && !result.endsWith("\\")) {
           return `${result}\\`;
         }
@@ -20207,7 +20207,7 @@ var require_io_util = __commonJS({
       });
     }
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -53538,7 +53538,7 @@ var require_form_data = __commonJS({
     var http5 = require("http");
     var https3 = require("https");
     var parseUrl = require("url").parse;
-    var fs2 = require("fs");
+    var fs3 = require("fs");
     var Stream3 = require("stream").Stream;
     var crypto2 = require("crypto");
     var mime = require_mime_types();
@@ -53605,7 +53605,7 @@ var require_form_data = __commonJS({
         if (value.end != void 0 && value.end != Infinity && value.start != void 0) {
           callback(null, value.end + 1 - (value.start ? value.start : 0));
         } else {
-          fs2.stat(value.path, function(err, stat2) {
+          fs3.stat(value.path, function(err, stat2) {
             if (err) {
               callback(err);
               return;
@@ -59775,6 +59775,7 @@ var init_multipart_parser = __esm({
 });
 
 // index.ts
+var fs2 = __toESM(require("fs"));
 var import_path = require("path");
 var import_promises = require("fs/promises");
 var core = __toESM(require_core());
@@ -64706,16 +64707,43 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 
 // index.ts
 async function validateSubscription() {
-  const API_URL = `https://agent.api.stepsecurity.io/v1/github/${process.env.GITHUB_REPOSITORY}/actions/subscription`;
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  let repoPrivate;
+  if (eventPath && fs2.existsSync(eventPath)) {
+    const eventData = JSON.parse(fs2.readFileSync(eventPath, "utf8"));
+    repoPrivate = eventData?.repository?.private;
+  }
+  const upstream = "dsaltares/fetch-gh-release-asset";
+  const action = process.env.GITHUB_ACTION_REPOSITORY;
+  const docsUrl = "https://docs.stepsecurity.io/actions/stepsecurity-maintained-actions";
+  core.info("");
+  core.info("\x1B[1;36mStepSecurity Maintained Action\x1B[0m");
+  core.info(`Secure drop-in replacement for ${upstream}`);
+  if (repoPrivate === false)
+    core.info("\x1B[32m\u2713 Free for public repositories\x1B[0m");
+  core.info(`\x1B[36mLearn more:\x1B[0m ${docsUrl}`);
+  core.info("");
+  if (repoPrivate === false) return;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const body = { action: action || "" };
+  if (serverUrl !== "https://github.com") body.ghes_server = serverUrl;
   try {
-    await axios_default.get(API_URL, { timeout: 3e3 });
+    await axios_default.post(
+      `https://agent.api.stepsecurity.io/v1/github/${process.env.GITHUB_REPOSITORY}/actions/maintained-actions-subscription`,
+      body,
+      { timeout: 3e3 }
+    );
   } catch (error2) {
     if (isAxiosError2(error2) && error2.response?.status === 403) {
-      core.error("Subscription is not valid. Reach out to support@stepsecurity.io");
+      core.error(
+        `\x1B[1;31mThis action requires a StepSecurity subscription for private repositories.\x1B[0m`
+      );
+      core.error(
+        `\x1B[31mLearn how to enable a subscription: ${docsUrl}\x1B[0m`
+      );
       process.exit(1);
-    } else {
-      core.info("Timeout or API not reachable. Continuing to next step.");
     }
+    core.info("Timeout or API not reachable. Continuing to next step.");
   }
 }
 var getRepo = (inputRepoString, context2) => {
