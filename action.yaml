@@ -29,7 +29,7 @@ inputs:
     description: 'The Github API base URL. Useful if you are using Github Enterprise.'
     required: false
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
 
 outputs:
